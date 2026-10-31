@@ -1,6 +1,6 @@
 # Design Spec — Afterglow Linux
 
-Status: proposed for final spec review, following approval of the in-chat design.
+Status: locked; the user approved this written specification on 2026-11-01.
 
 ## Purpose and references
 

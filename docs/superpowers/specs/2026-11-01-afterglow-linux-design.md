@@ -1,6 +1,6 @@
 # Afterglow Linux — first release design
 
-Status: awaiting user review of the written spec.
+Status: approved by the user on 2026-11-01.
 Date: 2026-11-01
 
 ## Agreed intent
