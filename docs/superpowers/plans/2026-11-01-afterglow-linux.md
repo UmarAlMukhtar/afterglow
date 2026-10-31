@@ -112,12 +112,12 @@
 
 **Files:** Create `README.md`, MIT `LICENSE`; finish optional launcher and `.gitignore`; update plan checkboxes as work finishes.
 
-- [ ] Write Fedora runtime-package instructions, source-run command, provider connection steps, privacy/data locations, architecture, tests, screenshots, troubleshooting and tested compatibility limits. Make launcher installation optional, with paths resolved from the actual checkout.
-- [ ] Run `python3 -m unittest discover -s tests -v`, Python compilation and `git diff --check`; require passing output. Complete private-bus end-to-end checks.
-- [ ] Launch the app on the user's desktop. Verify overlay input passes through, fullscreen/Escape works, monitor geometry is correct, audio comes from the output monitor and quitting cleans up. Test live track metadata/lyrics/controls when a real source is available; clearly report any unavailable provider/Bluetooth checks.
-- [ ] Review the full implementation against the approved spec, resolve actionable failures, and rerun only affected checks. A fresh review may be used if authorized by the selected execution workflow.
-- [ ] Check staged/tracked paths for credentials, caches and non-original fixtures. Commit the release source/docs, then create the requested public `UmarAlMukhtar/afterglow-linux` repository (use an available equivalent name if taken) and push the reviewed source.
-- [ ] Leave the local demo open for the user to try, and deliver the repository URL, run command, observed checks and remaining limitations.
+- [x] Write Fedora runtime-package instructions, source-run command, provider connection steps, privacy/data locations, architecture, tests, screenshots, troubleshooting and tested compatibility limits. Make launcher installation optional, with paths resolved from the actual checkout.
+- [x] Run `python3 -m unittest discover -s tests -v`, Python compilation and `git diff --check`; require passing output. Complete private-bus end-to-end checks.
+- [x] Launch the app on the user's desktop. Verify overlay input passes through, fullscreen/Escape works, monitor geometry is correct, audio comes from the output monitor and quitting cleans up. Test live track metadata/lyrics/controls when a real source is available; clearly report any unavailable provider/Bluetooth checks.
+- [x] Review the full implementation against the approved spec, resolve actionable failures, and rerun only affected checks. A fresh review may be used if authorized by the selected execution workflow.
+- [x] Check staged/tracked paths for credentials, caches and non-original fixtures. Commit the release source/docs, then create the requested public `UmarAlMukhtar/afterglow-linux` repository (use an available equivalent name if taken) and push the reviewed source.
+- [x] Leave the local demo open for the user to try, and deliver the repository URL, run command, observed checks and remaining limitations.
 
 ## Approved follow-up implementation
 
