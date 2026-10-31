@@ -58,6 +58,7 @@ class AfterglowApp(Gtk.Application):
         self.visual = None
         self.window = None
         self.generation = LatestRequest()
+        self.requests = {'lyrics': self.generation, 'art': LatestRequest()}
         self.jobs = {kind: queue.Queue(maxsize=1) for kind in ('lyrics', 'art')}
         self.content_done = threading.Event()
         self.content_threads = []
@@ -273,16 +274,23 @@ class AfterglowApp(Gtk.Application):
         return False
 
     def accept_playback(self, current):
-        changed = (current.key() if current else None) != (self.playback.key() if self.playback else None)
+        previous = self.playback
+        changed = (current.key() if current else None) != (previous.key() if previous else None)
+        lyrics_changed = changed or (current and previous and current.track() != previous.track())
+        art_changed = changed or (current and previous and current.art_url != previous.art_url)
         self.playback = current
         if changed:
-            generation = self.generation.next()
             self.document = LyricDocument()
             self.palette = ('#A9E5C2', '#EBAE84')
             self.content_status = ''
+        if lyrics_changed:
+            generation = self.requests['lyrics'].next()
             self.loading = bool(current and current.title)
             if self.loading:
                 self.enqueue('lyrics', (generation, current, None))
+        if art_changed:
+            generation = self.requests['art'].next()
+            if current:
                 self.enqueue('art', (generation, current, None))
 
     def enqueue(self, kind, job):
@@ -299,7 +307,7 @@ class AfterglowApp(Gtk.Application):
                 generation, track, override = self.jobs[kind].get(timeout=.2)
             except queue.Empty:
                 continue
-            if not self.generation.is_current(generation):
+            if not self.requests[kind].is_current(generation):
                 continue
             try:
                 result = resolve_lyrics(track.track(), override) if kind == 'lyrics' else load_artwork(track.art_url)
@@ -311,7 +319,7 @@ class AfterglowApp(Gtk.Application):
                 GLib.idle_add(self.content_ready, kind, generation, result, error)
 
     def content_ready(self, kind, generation, result, error):
-        if self.closing or not self.generation.is_current(generation):
+        if self.closing or not self.requests[kind].is_current(generation):
             return False
         if kind == 'lyrics':
             self.loading = False
@@ -327,7 +335,8 @@ class AfterglowApp(Gtk.Application):
 
     def set_demo(self, enabled):
         self.demo = enabled
-        self.generation.next()
+        for request in self.requests.values():
+            request.next()
         self.loading = False
         self.content_status = ''
         if enabled:
@@ -407,25 +416,32 @@ class AfterglowApp(Gtk.Application):
         if not self.playback or self.demo:
             self.content_status = 'Play a song first; imported lyrics attach to that song.'
             return
+        target = self.playback
         dialog = Gtk.FileChooserDialog(title='Import timed lyrics', parent=self.window, action=Gtk.FileChooserAction.OPEN)
         dialog.add_buttons('Cancel', Gtk.ResponseType.CANCEL, 'Import', Gtk.ResponseType.OK)
         file_filter = Gtk.FileFilter()
         file_filter.set_name('LRC lyric files'); file_filter.add_pattern('*.lrc')
         dialog.add_filter(file_filter)
         if dialog.run() == Gtk.ResponseType.OK:
+            if not self.playback or self.playback.key() != target.key():
+                self.content_status = 'The song changed while choosing the file. Import again for the intended song.'
+                dialog.destroy()
+                return
+            target = self.playback
             try:
                 with Path(dialog.get_filename()).open('r', encoding='utf-8-sig') as stream:
                     text = stream.read(MAX_TEXT + 1)
-                parse_lrc(text, self.playback.duration)
+                parse_lrc(text, target.duration)
                 self.loading = True
-                self.enqueue('lyrics', (self.generation.next(), self.playback, text))
+                self.enqueue('lyrics', (self.generation.next(), target, text))
             except (OSError, ValueError) as error:
                 self.content_status = 'Could not import lyrics: ' + str(error)[:120]
         dialog.destroy()
 
     def do_shutdown(self):
         self.closing = True
-        self.generation.next()
+        for request in self.requests.values():
+            request.next()
         self.content_done.set()
         if self.tick_id:
             GLib.source_remove(self.tick_id)

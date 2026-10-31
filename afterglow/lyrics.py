@@ -7,6 +7,7 @@ import re
 import xml.etree.ElementTree as ET
 
 MAX_TEXT = 2 * 1024 * 1024
+MAX_EVENTS = 50000
 STAMP = r'(\d{1,3}):(\d{2}(?:\.\d+)?)'
 
 
@@ -58,6 +59,7 @@ def parse_lrc(text: str, duration: float = 0) -> LyricDocument:
     offset_match = re.search(r'\[offset:([+-]?\d+)\]', text, re.I)
     offset = int(offset_match[1]) / 1000 if offset_match else 0
     entries = {}
+    events = expanded_text = 0
     for raw in text.splitlines():
         stamps = list(re.finditer(r'\[' + STAMP + r'\]', raw))
         if not stamps:
@@ -65,9 +67,15 @@ def parse_lrc(text: str, duration: float = 0) -> LyricDocument:
         body = raw[stamps[-1].end():].strip()
         if not re.sub(r'<' + STAMP + r'>', '', body).strip():
             continue
+        count = max(1, len(body.split()), len(re.findall(r'<' + STAMP + r'>', body)))
         for stamp in stamps:
             start = max(0, seconds(*stamp.groups()) + offset)
-            entries.setdefault(start, body)
+            if start not in entries:
+                events += count
+                expanded_text += len(body)
+                if events > MAX_EVENTS or expanded_text > MAX_TEXT * 4:
+                    raise ValueError('Expanded lyrics contain too many events')
+                entries[start] = body
             if len(entries) > 20000:
                 raise ValueError('Too many lyric lines')
     if not entries:
@@ -76,17 +84,19 @@ def parse_lrc(text: str, duration: float = 0) -> LyricDocument:
     starts = sorted(entries)
     lines, exact = [], []
     for i, start in enumerate(starts):
-        # shortcut: line timestamps lack vocal ends; cap inferred phrases at 7s until word data is available.
-        end = min(starts[i + 1] if i + 1 < len(starts) else (duration if duration > start else start + 5), start + 7)
         body = entries[start]
         tags = list(re.finditer(r'<' + STAMP + r'>', body))
+        boundary = starts[i + 1] if i + 1 < len(starts) else (duration if duration > start else max([start + 5] + [seconds(*t.groups()) + offset + 3 for t in tags]))
+        # shortcut: line timestamps lack vocal ends; only inferred phrases are capped at 7s.
+        end = boundary if tags else min(boundary, start + 7)
         words = []
         for j, tag in enumerate(tags):
             token = body[tag.end():tags[j + 1].start() if j + 1 < len(tags) else len(body)].strip()
             a = max(start, seconds(*tag.groups()) + offset)
             b = seconds(*tags[j + 1].groups()) + offset if j + 1 < len(tags) else end
+            b = min(b, end)
             if token and b > a:
-                words.append(Word(token, a, min(b, end)))
+                words.append(Word(token, a, b))
         clean = re.sub(r'<' + STAMP + r'>', '', body).strip()
         exact.append(bool(words))
         if words:
