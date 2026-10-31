@@ -28,6 +28,9 @@ def main():
                 assert app.lyric_position() >= position + 1.99
                 app.show_visual('desktop')
                 assert app.visual is not None and app.visual.mode == 'desktop'
+                from gi.repository import Gtk
+                for _ in range(10):
+                    if Gtk.events_pending(): Gtk.main_iteration_do(False)
                 assert app.visual.get_window().is_visible()
                 import ctypes as c
                 gi = __import__('gi'); gi.require_version('GdkX11', '3.0')

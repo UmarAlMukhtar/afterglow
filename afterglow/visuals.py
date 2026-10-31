@@ -8,16 +8,18 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
 gi.require_version('PangoCairo', '1.0')
-from gi.repository import Gtk, Gdk, Pango, PangoCairo
+from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
 
 from .lyrics import locate
+from .lyric_scene import STYLES
+from .gpu_lyrics import LensLayer
 
 
 def rgb(value):
     return tuple(int(value[i:i + 2], 16) / 255 for i in (1, 3, 5))
 
 
-class Stage(Gtk.DrawingArea):
+class Canvas(Gtk.DrawingArea):
     def __init__(self, owner, preview=False, desktop=False):
         super().__init__()
         self.owner, self.preview, self.desktop = owner, preview, desktop
@@ -89,12 +91,13 @@ class Stage(Gtk.DrawingArea):
             self.word_indices = {(i, j): n for n, (_, i, j) in enumerate(self.words)}
             self.focus = None
         i, j, progress = locate(doc, position)
-        if s['lyrics']:
+        use_lens = s['style'] in STYLES and not getattr(app, 'gpu_error', '')
+        if s['lyrics'] and (not use_lens or doc.quality in ('missing', 'instrumental', 'unsynced')):
             if doc.quality == 'unsynced' and doc.lines:
                 lines = doc.lines[0].text.splitlines()
                 index = int(now / 5) % max(1, len(lines))
                 self.text(ctx, lines[index], width / 2, lyric_center, 48 * scale * s['size'], width=text_width, bold=True)
-            elif i >= 0 and s['style'] == 'words' and j >= 0:
+            elif i >= 0 and s['style'] != 'lines' and j >= 0:
                 index = self.word_indices.get((i, j), 0)
                 if self.focus is None or s['reduce_motion'] or abs(self.focus - index) > 6:
                     self.focus = float(index)
@@ -121,7 +124,7 @@ class Stage(Gtk.DrawingArea):
                 if app.playback and doc.quality == 'missing':
                     message = 'Lyrics unavailable' if not app.loading else 'Finding the words…'
                 self.text(ctx, message, width / 2, lyric_center, 48 * scale, alpha=.8, width=text_width, bold=True)
-        if not self.desktop:
+        if not self.desktop and (self.preview or not use_lens):
             self.text(ctx, 'AFTERGLOW  /  ' + ('DEMO' if app.demo else 'NOW PLAYING'), width / 2, 30 if self.preview else height * .10,
                       11 if self.preview else 13, '#A9B7AE', width=text_width)
             if app.playback:
@@ -131,6 +134,21 @@ class Stage(Gtk.DrawingArea):
             if not self.preview:
                 self.text(ctx, app.timing_label() + '   ·   Esc to return', width / 2, height * .93, 12, '#A9B7AE', width=text_width)
         return False
+
+
+class Stage(Gtk.Overlay):
+    def __init__(self, owner, preview=False, desktop=False):
+        super().__init__()
+        self.canvas = Canvas(owner, preview, desktop)
+        self.lens = LensLayer(owner, preview)
+        self.add(self.canvas)
+        self.add_overlay(self.lens)
+        self.set_overlay_pass_through(self.lens, True)
+        self.get_accessible().set_name('Animated lyrics and audio-reactive light')
+
+    def queue_draw(self):
+        self.canvas.queue_draw()
+        self.lens.queue_render()
 
 
 class VisualWindow(Gtk.ApplicationWindow):
@@ -156,8 +174,19 @@ class VisualWindow(Gtk.ApplicationWindow):
         self.connect('delete-event', self.closed)
         self.position()
         self.show_all()
+        if mode == 'desktop':
+            self.pass_through()
+            self.connect('map-event', lambda *args: GLib.idle_add(self.pass_through))
+            self.connect('size-allocate', lambda *args: GLib.idle_add(self.pass_through))
         if mode == 'fullscreen':
             self.fullscreen_on_monitor(self.get_screen(), owner.monitor_index())
+
+    def pass_through(self):
+        window = self.get_window()
+        if window:
+            self.input_shape_combine_region(cairo.Region())
+            window.input_shape_combine_region(cairo.Region(), 0, 0)
+        return False
 
     def position(self):
         monitor = Gdk.Display.get_default().get_monitor(self.owner.monitor_index())

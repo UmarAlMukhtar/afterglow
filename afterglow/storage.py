@@ -15,10 +15,12 @@ import urllib.parse
 import urllib.request
 
 from .lyrics import MAX_TEXT, LyricDocument, Line, Word, parse_lrc, parse_ttml
+from .media import spotify_track_id
 
 DEFAULTS = dict(intensity=.65, width=42., size=1., offset=0., light=True,
-                lyrics=True, reduce_motion=False, style='words', monitor=0,
-                palette='album', primary='#A9E5C2', secondary='#EBAE84')
+                lyrics=True, reduce_motion=False, style='fisheye_visual', monitor=0,
+                palette='album', primary='#A9E5C2', secondary='#EBAE84',
+                lyric_color='#C7839D', lyric_highlight='#B6486C', lyric_secondary='#A07185', spotify_bridge=False)
 
 
 def paths():
@@ -40,10 +42,10 @@ def validated(raw):
             result[k] = max(ranges[k][0], min(ranges[k][1], value))
         elif isinstance(default, bool) and isinstance(value, bool):
             result[k] = value
-        elif k in ('primary', 'secondary') and isinstance(value, str) and re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+        elif k in ('primary', 'secondary', 'lyric_color', 'lyric_highlight', 'lyric_secondary') and isinstance(value, str) and re.fullmatch(r'#[0-9a-fA-F]{6}', value):
             result[k] = value
-        elif k == 'style' and value in ('words', 'lines'):
-            result[k] = value
+        elif k == 'style' and value in ('words', 'lines', 'ship', 'fisheye', 'fisheye_visual', 'visual'):
+            result[k] = 'ship' if value == 'words' else value
         elif k == 'palette' and value in ('album', 'manual'):
             result[k] = value
     result['monitor'] = int(result['monitor'])
@@ -142,10 +144,10 @@ def resolve_lyrics(track: dict, override: str | None = None) -> LyricDocument:
     except (OSError, ValueError, KeyError, TypeError):
         pass
     doc = None
-    match = re.search(r'(?:spotify:track:|open\.spotify\.com/track/)([A-Za-z0-9]{22})(?:\b|$)', str(track.get('track_url', '')))
-    if match:
+    track_id = spotify_track_id(track.get('track_url', ''))
+    if track_id:
         try:
-            data = fetch_bytes('https://raw.githubusercontent.com/amll-dev/amll-ttml-db/main/spotify-lyrics/' + match[1] + '.ttml', MAX_TEXT)
+            data = fetch_bytes('https://raw.githubusercontent.com/amll-dev/amll-ttml-db/main/spotify-lyrics/' + track_id + '.ttml', MAX_TEXT)
             candidate = parse_ttml(data.decode('utf-8'))
             if candidate.lines:
                 doc = candidate

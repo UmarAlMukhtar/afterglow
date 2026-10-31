@@ -166,3 +166,22 @@ outside this release. They do not block the requested local experience.
 
 Publish only source, original fixtures and documentation. Exclude local settings,
 cached lyrics/artwork, credentials, temporary captures and test-environment data.
+
+## User-approved follow-up scope — 2026-11-01
+
+The user replaced the approximate word stack with a request to recreate Verci's
+lyric presentation and selected all four named styles. Follow the revision in
+DESIGN.md: oversized perspective type, filled active-word highlights, word symbols,
+and a real OpenGL convex mesh for the two fisheye variants. This supersedes the
+original small word-stack visual treatment. Other v1 platform boundaries remain.
+
+The user also authorized adding a user-installed Spotify copy with Spicetify and
+the prepared optional lyric bridge, because the existing system Flatpak is
+read-only. Keep that system copy in place; a Spotify restart is authorized.
+The bridge runs inside the user's Spotify session and calls its undocumented lyric
+endpoint. It sends only lyric fields, track ID and duration to an authenticated
+loopback receiver; no Spotify credential is exported. A private local connection
+token is stored in XDG config. This is optional and disabled by default for other
+users. Clearly describe private-endpoint availability and the distinction between
+Spotify line timing and actual word timing. Received bridge lyrics stay in memory;
+imported lyrics and genuine word-timed sources retain priority.

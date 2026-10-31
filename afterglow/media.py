@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 import math
 import queue
+import re
 import threading
 import time
 
@@ -10,6 +11,11 @@ PLAYER = 'org.mpris.MediaPlayer2.Player'
 ROOT = 'org.mpris.MediaPlayer2'
 PROPS = 'org.freedesktop.DBus.Properties'
 OBJECT = '/org/mpris/MediaPlayer2'
+
+
+def spotify_track_id(url):
+    match = re.search(r'(?:spotify:track:|open\.spotify\.com/track/)([A-Za-z0-9]{22})(?:\b|$)', str(url))
+    return match[1] if match else ''
 
 
 @dataclass(frozen=True)

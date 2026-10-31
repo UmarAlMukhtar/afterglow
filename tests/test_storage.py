@@ -30,7 +30,7 @@ class StorageTests(unittest.TestCase):
         s = load_settings()
         self.assertEqual(s['offset'], 0)
         self.assertLessEqual(s['intensity'], 1)
-        self.assertEqual(s['style'], 'words')
+        self.assertEqual(s['style'], 'fisheye_visual')
 
     def test_import_wins_and_is_cached(self):
         with patch('afterglow.storage.fetch_bytes', side_effect=AssertionError('network forbidden')):
@@ -62,6 +62,12 @@ class StorageTests(unittest.TestCase):
         g.next()
         self.assertFalse(g.is_current(a))
         self.assertNotEqual(cache_key(self.track), cache_key(dict(self.track, artist='Other')))
+
+    def test_reference_styles_and_lyric_colors_persist(self):
+        for style in ('ship', 'fisheye', 'fisheye_visual', 'visual'):
+            save_settings({'style': style, 'lyric_color': '#c7839d', 'lyric_highlight': '#b6486c'})
+            self.assertEqual(load_settings()['style'], style)
+            self.assertEqual(load_settings()['lyric_highlight'], '#b6486c')
 
     def test_fetch_rejects_credentials_local_schemes_and_oversize(self):
         for url in ['file:///etc/passwd', 'http://example.com/x', 'https://u:p@example.com/a']:

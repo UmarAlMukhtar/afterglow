@@ -13,9 +13,11 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Pango
 
 from .audio import AudioWorker
 from .lyrics import LyricDocument, parse_lrc, MAX_TEXT
-from .media import Playback, MediaWorker, allowed_command
+from .media import Playback, MediaWorker, allowed_command, spotify_track_id
 from .storage import load_settings, save_settings, resolve_lyrics, load_artwork, LatestRequest
 from .visuals import Stage, VisualWindow
+from .lyric_scene import STYLES
+from .spotify_bridge import SpotifyBridge
 
 DEMO_LRC = '''[00:00.00]<00:00.00>Let <00:01.00>the <00:01.50>room <00:02.50>glow<00:04.00>
 [00:04.00]<00:04.00>Follow <00:05.20>every <00:06.40>little <00:07.30>sound<00:09.00>
@@ -56,6 +58,7 @@ class AfterglowApp(Gtk.Application):
         self.loading = False
         self.closing = False
         self.visual = None
+        self.bridge = None
         self.window = None
         self.generation = LatestRequest()
         self.requests = {'lyrics': self.generation, 'art': LatestRequest()}
@@ -87,6 +90,8 @@ class AfterglowApp(Gtk.Application):
             thread.start()
         self.media.start()
         self.audio.start()
+        if self.settings['spotify_bridge']:
+            self.configure_bridge(True)
         if self.demo:
             self.set_demo(True)
         self.tick_id = GLib.timeout_add(33, self.tick)
@@ -159,6 +164,10 @@ class AfterglowApp(Gtk.Application):
         self.source_combo.set_active(0)
         self.source_combo.connect('changed', self.select_source)
         box.pack_start(self.source_combo, False, False, 0)
+        bridge_toggle = Gtk.CheckButton(label='Use Spotify lyric bridge · requires the optional Spicetify extension')
+        bridge_toggle.set_active(self.settings['spotify_bridge'])
+        bridge_toggle.connect('toggled', lambda w: self.configure_bridge(w.get_active()))
+        box.pack_start(bridge_toggle, False, False, 0)
         self.section(box, 'YOUR SPACE')
         box.pack_start(self.row(self.button('Desktop glow', lambda: self.show_visual('desktop')),
                                 self.button('Fullscreen', lambda: self.show_visual('fullscreen'), True),
@@ -171,7 +180,8 @@ class AfterglowApp(Gtk.Application):
             toggles.append(toggle)
         box.pack_start(self.row(*toggles), False, False, 0)
         style = Gtk.ComboBoxText()
-        style.append('words', 'Words · a drifting stack')
+        for key, profile in STYLES.items():
+            style.append(key, profile['name'])
         style.append('lines', 'Lines · a quieter view')
         style.set_active_id(self.settings['style'])
         style.connect('changed', lambda w: self.change('style', w.get_active_id()))
@@ -205,6 +215,15 @@ class AfterglowApp(Gtk.Application):
             button.connect('color-set', lambda w, k=key: self.change(k, '#' + ''.join(f'{round(v * 255):02x}' for v in (w.get_rgba().red, w.get_rgba().green, w.get_rgba().blue))))
             color_buttons.append(button)
         box.pack_start(self.row(*color_buttons), False, False, 0)
+        box.pack_start(self.label('Lyric colors · text / highlight / secondary (manual palette)', 'muted'), False, False, 0)
+        lyric_colors = []
+        for key, name in [('lyric_color', 'Lyric text'), ('lyric_highlight', 'Word highlight'), ('lyric_secondary', 'Secondary text')]:
+            rgba = Gdk.RGBA(); rgba.parse(self.settings[key])
+            button = Gtk.ColorButton.new_with_rgba(rgba)
+            button.set_title(name); button.get_accessible().set_name(name)
+            button.connect('color-set', lambda w, k=key: self.change(k, '#' + ''.join(f'{round(v*255):02x}' for v in (w.get_rgba().red,w.get_rgba().green,w.get_rgba().blue))))
+            lyric_colors.append(button)
+        box.pack_start(self.row(*lyric_colors), False, False, 0)
         box.pack_start(self.row(self.button('Import LRC…', self.import_lyrics), self.button('Retry lyrics', self.retry_lyrics)), False, False, 0)
         self.demo_toggle = Gtk.CheckButton(label='Try the original visual demo · no music login needed')
         self.demo_toggle.set_active(self.demo)
@@ -292,6 +311,9 @@ class AfterglowApp(Gtk.Application):
             generation = self.requests['art'].next()
             if current:
                 self.enqueue('art', (generation, current, None))
+        bridge = getattr(self, 'bridge', None)
+        if bridge and bridge.latest:
+            self.accept_spotify_lyrics(*bridge.latest)
 
     def enqueue(self, kind, job):
         q = self.jobs[kind]
@@ -323,10 +345,38 @@ class AfterglowApp(Gtk.Application):
             return False
         if kind == 'lyrics':
             self.loading = False
+            bridge = getattr(self, 'bridge', None)
+            if bridge and bridge.latest and self.playback and spotify_track_id(self.playback.track_url) == bridge.latest[0] and (not result or (result.quality != 'word' and result.source != 'LRC')):
+                result = bridge.latest[1]
+                error = ''
             self.document = result or LyricDocument()
             self.content_status = error
         elif result:
             self.palette = result[1]
+        return False
+
+    def configure_bridge(self, enabled):
+        self.settings['spotify_bridge'] = enabled
+        if self.bridge:
+            self.bridge.stop()
+            self.bridge = None
+        if enabled:
+            try:
+                self.bridge = SpotifyBridge(lambda *args: GLib.idle_add(self.accept_spotify_lyrics, *args))
+                self.bridge.start()
+                self.content_status = 'Spotify bridge ready · waiting for the optional extension'
+            except OSError:
+                self.bridge = None
+                self.content_status = 'Spotify bridge could not bind its local port; another Afterglow may be running'
+
+    def accept_spotify_lyrics(self, track_id, document):
+        if self.closing or self.demo or not self.playback or spotify_track_id(self.playback.track_url) != track_id:
+            return False
+        if self.document.quality == 'word' or self.document.source == 'LRC':
+            return False
+        self.document = document
+        self.loading = False
+        self.content_status = 'Lyrics received from Spotify · word timing is estimated when Spotify supplies line timing'
         return False
 
     def update_audio(self, level, bass, status):
@@ -389,7 +439,7 @@ class AfterglowApp(Gtk.Application):
             for button, action in [(self.previous, 'Previous'), (self.play, 'PlayPause'), (self.next_button, 'Next')]:
                 button.set_sensitive(allowed_command(p, action))
             self.play.set_label('Pause' if p and p.playing else 'Play')
-            self.status_label.set_text('\n'.join(filter(None, [self.timing_label(), 'Visual demo · simulated audio reaction' if self.demo else self.audio_status, self.content_status, getattr(self, 'media_error', '')])))
+            self.status_label.set_text('\n'.join(filter(None, [self.timing_label(), 'Visual demo · simulated audio reaction' if self.demo else self.audio_status, self.content_status, getattr(self, 'media_error', ''), getattr(self, 'gpu_error', '')])))
         return True
 
     def show_visual(self, mode):
@@ -443,6 +493,8 @@ class AfterglowApp(Gtk.Application):
         for request in self.requests.values():
             request.next()
         self.content_done.set()
+        if self.bridge:
+            self.bridge.stop()
         if self.tick_id:
             GLib.source_remove(self.tick_id)
         if self.visual:

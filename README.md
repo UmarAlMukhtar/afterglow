@@ -10,11 +10,11 @@ Inspired by the experience of [Verci](https://www.verci.xyz/) and
 [Lumn](https://www.trylumn.xyz/), with an independent implementation for X11.
 MIT licensed. No Afterglow account, telemetry or streaming-service API keys.
 
-![Original demo rendered by Afterglow](docs/images/fullscreen.png)
+![Fisheye Visual with original demo lyrics](docs/images/fisheye_visual.png)
 
 ## Try it
 
-Requires an **X11 session**, Python 3.10+, GTK3 and a PulseAudio-compatible audio
+Requires an **X11 session**, Python 3.10+, GTK3, OpenGL 3.3+ for the four lyric styles, and a PulseAudio-compatible audio
 server (including PipeWire's PulseAudio support). Desktop transparency needs a
 compositor, such as picom. Fullscreen can be used without desktop transparency.
 
@@ -61,6 +61,28 @@ it supports them. Escape returns from fullscreen. Space toggles playback while
 the fullscreen stage has focus. **Hide** removes the desktop overlay; **Quit**
 closes all visual surfaces and stops audio capture. Closing the main window quits.
 
+## Four lyric styles
+
+Choose **Ship**, **Fisheye**, **Fisheye Visual**, or **Visual**. All use large,
+perspective word walls and a filled current-word highlight. The two fisheye views
+use an actual GPU mesh lens; the Visual variants add matched word symbols. The
+quieter line view remains available. Text is shaped with Pango for multilingual
+lyrics. These are independent recreations from public visual references: proprietary
+shader/code, Apple symbol assets and Verci's full private icon mapping are not copied.
+
+## Spotify's own lyrics (optional)
+
+The normal MPRIS connection does not expose Spotify's lyrics. An optional
+[Spicetify bridge](integrations/spotify/README.md) can request them **inside Spotify**
+and send only lyric data to Afterglow's authenticated loopback receiver. No Spotify
+cookies or session tokens leave the Spotify client. Installing Spicetify modifies
+that client and is a separate, opt-in step. The receiver is disabled by default.
+
+Spotify's lyric endpoint is undocumented and can change or restrict access. Spotify
+usually supplies line timing, so word animation can still be estimated. Imported
+LRC and genuine word-timed sources retain priority. See the bridge guide for setup,
+local-token handling and removal.
+
 ## Lyrics: exact when supplied, honest when estimated
 
 Afterglow uses these sources in order:
@@ -93,9 +115,10 @@ No speech-recognition or automatic forced alignment is included.
   to `~/.config/afterglow-linux/`.
 - Fetched lyrics: `$XDG_CACHE_HOME/afterglow-linux/`, defaulting to
   `~/.cache/afterglow-linux/`, capped at 500 cached documents.
-- No provider tokens, credentials, analytics, listening history, cloud account or
+- No provider tokens, provider credentials, analytics, listening history, cloud account or
   automatic update executor. Pending content requests have timeouts; obsolete
   track results are ignored.
+- The optional Spotify bridge has its own private local connection token and keeps received lyrics in memory.
 - Corrupt preferences are preserved as `settings.json.broken` before replacement.
 
 ## Compatibility and verification
@@ -160,7 +183,9 @@ Remove those two files to remove the launcher. Your player is unaffected.
 python3 -m unittest discover -s tests -v
 dbus-run-session -- python3 tests/check_mpris.py
 dbus-run-session -- python3 tests/check_desktop.py  # requires an X11 display
-python3 -m compileall -q afterglow tests
+dbus-run-session -- python3 tests/check_connected.py
+node tests/check_spotify_extension.cjs  # extension sandbox self-check
+python3 -m compileall -q afterglow tests tools
 git diff --check
 ```
 

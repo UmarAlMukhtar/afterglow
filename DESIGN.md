@@ -90,3 +90,26 @@ control light intensity and lyric size; light and lyrics can be switched separat
 
 Once the user confirms the written spec, this design is locked for the first
 release. Any material design change requires another review.
+
+## User-approved lyric revision — 2026-11-01
+
+The user requested faithful recreation of Verci's lyric presentation and explicitly
+selected all four styles after the initial implementation. The references inspected
+are its public hero video, hero poster and styles image; these remain research-only
+and are not shipped as product assets.
+
+- Ship: a large, perspective word wall; current word on a filled color block.
+- Fisheye: the same wall through a convex GPU mesh lens.
+- Fisheye Visual: the convex wall with symbols for matched words.
+- Visual: perspective word wall with those symbols and no lens.
+- Show the current word and recent sung words, rather than a small centered ticker
+  with future words. Use smooth upward motion, oversized bold system type and
+  white current text over the highlight. Keep fullscreen lyric surfaces free of
+  branding and player captions.
+- Lyric fallback colors: text #C7839D, highlight #B6486C, secondary #A07185;
+  manual controls or album-adaptive colors. The lighting controls remain independent.
+- Retain the optional quieter line view. The system's OpenGL 3.3+ renderer performs
+  actual mesh deformation; Cairo/Pango shapes multilingual glyphs into textures.
+- Icons are an original Unicode mapping, not Apple's proprietary symbol artwork or
+  Verci's private word database. Pixel-identical proprietary shaders, font metrics
+  and full icon-catalog parity are not claimed.
