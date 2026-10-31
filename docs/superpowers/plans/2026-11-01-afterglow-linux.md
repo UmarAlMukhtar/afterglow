@@ -1,6 +1,6 @@
 # Afterglow Linux Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deliver and locally demonstrate an open-source X11 music companion with synced lyrics and output-audio-reactive edge lighting.
 
@@ -49,12 +49,12 @@
 
 **Interfaces:** Produce immutable `Word(text, start, end)`, `Line(text, start, end, words)` and `LyricDocument(lines, quality, source)` dataclasses; `parse_lrc(text: str, duration: float = 0) -> LyricDocument`; `parse_ttml(text: str) -> LyricDocument`; `locate(document: LyricDocument, position: float) -> tuple[int, int, float]`. Quality values: `word`, `estimated`, `unsynced`, `instrumental`, `missing`.
 
-- [ ] Write tests asserting: `[00:01.00]Hello world` starts at 1 second and is `estimated`; enhanced LRC `<00:01.00>Hello <00:02.00>world` retains exact starts and is `word`; a gap has no falsely active word; plain lyrics are `unsynced`; empty input is `missing`.
-- [ ] Add TTML tests for word spans, syllables, whitespace and malformed/entity-containing XML; add LRC tests for offsets, duplicate timestamps, nonfinite values, long input and Unicode/RTL text.
-- [ ] Run `python3 -m unittest discover -s tests -p test_lyrics.py -v`; confirm failure before implementation.
-- [ ] Implement the models/parsers and binary-search timeline, with bounded input/event counts, safe timestamp ordering and explicit errors on oversized/unsafe documents.
-- [ ] Run the same command; require all tests to pass.
-- [ ] Commit the lyric core and its tests.
+- [x] Write tests asserting: `[00:01.00]Hello world` starts at 1 second and is `estimated`; enhanced LRC `<00:01.00>Hello <00:02.00>world` retains exact starts and is `word`; a gap has no falsely active word; plain lyrics are `unsynced`; empty input is `missing`.
+- [x] Add TTML tests for word spans, syllables, whitespace and malformed/entity-containing XML; add LRC tests for offsets, duplicate timestamps, nonfinite values, long input and Unicode/RTL text.
+- [x] Run `python3 -m unittest discover -s tests -p test_lyrics.py -v`; confirm failure before implementation.
+- [x] Implement the models/parsers and binary-search timeline, with bounded input/event counts, safe timestamp ordering and explicit errors on oversized/unsafe documents.
+- [x] Run the same command; require all tests to pass.
+- [x] Commit the lyric core and its tests.
 
 ### Task 2: Persistent settings and asynchronous content resolution
 
@@ -62,12 +62,12 @@
 
 **Interfaces:** Consume Task 1. Produce `load_settings() -> dict`, `save_settings(settings: dict) -> None`, `fetch_bytes(url: str, limit: int) -> bytes`, `resolve_lyrics(track: dict, override: str | None = None) -> LyricDocument`, `load_artwork(url: str) -> tuple[object | None, tuple[str, str]]`; a small `LatestRequest` generation guard with `next() -> int` and `is_current(generation: int) -> bool` prevents stale UI commits.
 
-- [ ] Write tests asserting temporary XDG directories work, settings round-trip atomically, invalid settings preserve the original file, and unsafe/oversized responses fail without partial cache writes.
-- [ ] Add mocked lyric-provider tests: imported override wins; cache hit avoids network; valid Spotify-ID TTML wins over LRCLIB; provider miss falls through; missing and instrumental results differ; a newer request makes the old generation stale.
-- [ ] Run `python3 -m unittest discover -s tests -p test_storage.py -v`; confirm failure before implementation.
-- [ ] Implement fixed lyric endpoints, bounded HTTPS retrieval, timeouts, metadata normalization, bounded caches and artwork downsampling/palette extraction outside GTK callbacks. Validate saved settings types/ranges. Persist no secrets or audio.
-- [ ] Run the same command; require all tests to pass.
-- [ ] Commit persistence/resolution and tests.
+- [x] Write tests asserting temporary XDG directories work, settings round-trip atomically, invalid settings preserve the original file, and unsafe/oversized responses fail without partial cache writes.
+- [x] Add mocked lyric-provider tests: imported override wins; cache hit avoids network; valid Spotify-ID TTML wins over LRCLIB; provider miss falls through; missing and instrumental results differ; a newer request makes the old generation stale.
+- [x] Run `python3 -m unittest discover -s tests -p test_storage.py -v`; confirm failure before implementation.
+- [x] Implement fixed lyric endpoints, bounded HTTPS retrieval, timeouts, metadata normalization, bounded caches and artwork downsampling/palette extraction outside GTK callbacks. Validate saved settings types/ranges. Persist no secrets or audio.
+- [x] Run the same command; require all tests to pass.
+- [x] Commit persistence/resolution and tests.
 
 ### Task 3: Music-source discovery and transport
 
@@ -75,12 +75,12 @@
 
 **Interfaces:** Produce `Playback` dataclass containing player bus name/identity, title/artist/album, duration/position/sample monotonic timestamp, playing status, track/artwork URLs and capability flags; `Playback.at(now: float) -> float`; `choose_player(players: list[Playback], preferred: str, previous: str) -> Playback | None`; `MediaWorker(on_update)` with `start()`, `select(bus_name: str)`, `command(action: str)`, `stop()`.
 
-- [ ] Write tests for stable active-player selection, explicit selection, disconnect, pause/seek extrapolation and incomplete browser metadata. Assert disabled transport capabilities are never sent to the player.
-- [ ] Run `python3 -m unittest discover -s tests -p test_media.py -v`; confirm failure before implementation.
-- [ ] Implement bounded MPRIS D-Bus polling and a command queue in one worker, identifying the intended bus name on commands and handling timeouts/player disappearance. Dispatch immutable snapshots to the GTK coordinator.
-- [ ] Implement a configurable fake MPRIS player on a private `dbus-run-session`, with track change, seek, capability and disconnect hooks. Its fixture uses original lyric/track data.
-- [ ] Run media tests and a private-bus discovery/control/reconnect smoke check; require observed snapshots and supported commands to match expectations.
-- [ ] Commit media integration and fixtures.
+- [x] Write tests for stable active-player selection, explicit selection, disconnect, pause/seek extrapolation and incomplete browser metadata. Assert disabled transport capabilities are never sent to the player.
+- [x] Run `python3 -m unittest discover -s tests -p test_media.py -v`; confirm failure before implementation.
+- [x] Implement bounded MPRIS D-Bus polling and a command queue in one worker, identifying the intended bus name on commands and handling timeouts/player disappearance. Dispatch immutable snapshots to the GTK coordinator.
+- [x] Implement a configurable fake MPRIS player on a private `dbus-run-session`, with track change, seek, capability and disconnect hooks. Its fixture uses original lyric/track data.
+- [x] Run media tests and a private-bus discovery/control/reconnect smoke check; require observed snapshots and supported commands to match expectations.
+- [x] Commit media integration and fixtures.
 
 ### Task 4: Output-audio reaction and routing recovery
 
@@ -88,12 +88,12 @@
 
 **Interfaces:** Produce `Envelope.update(pcm: bytes, rate: int) -> tuple[float, float]` for smoothed total/bass energy; `output_monitor() -> str`; `AudioWorker(on_update)` with `start()` and `stop()`. Callback supplies normalized energy and readable capture status; it never supplies/stores PCM outside the worker.
 
-- [ ] Write generated-PCM tests for silence, tone/pulse response, bounded peaks and release decay. Mock `pactl` responses to assert only a verified default sink monitor is selected and a missing monitor is reported as unavailable.
-- [ ] Add subprocess/routing tests proving sink changes or capture termination close the old reader and trigger bounded retry; `stop()` must stop the reader and worker.
-- [ ] Run `python3 -m unittest discover -s tests -p test_audio.py -v`; confirm failure before implementation.
-- [ ] Implement standard-library RMS/low-pass energy and attack/release smoothing; start `parec` with explicit monitor and PCM format, follow default sink changes, and use timeout/select-based reads and bounded reconnect backoff.
-- [ ] Run audio tests and an actual output-monitor capture probe; record source name and capture status without recording audio to disk or changing system routing.
-- [ ] Commit capture and tests.
+- [x] Write generated-PCM tests for silence, tone/pulse response, bounded peaks and release decay. Mock `pactl` responses to assert only a verified default sink monitor is selected and a missing monitor is reported as unavailable.
+- [x] Add subprocess/routing tests proving sink changes or capture termination close the old reader and trigger bounded retry; `stop()` must stop the reader and worker.
+- [x] Run `python3 -m unittest discover -s tests -p test_audio.py -v`; confirm failure before implementation.
+- [x] Implement standard-library RMS/low-pass energy and attack/release smoothing; start `parec` with explicit monitor and PCM format, follow default sink changes, and use timeout/select-based reads and bounded reconnect backoff.
+- [x] Run audio tests and an actual output-monitor capture probe; record source name and capture status without recording audio to disk or changing system routing.
+- [x] Commit capture and tests.
 
 ### Task 5: Native controls and both visual surfaces
 
@@ -101,12 +101,12 @@
 
 **Interfaces:** Consume Tasks 1–4. Produce `Stage(Gtk.DrawingArea)` drawing the current playback/document/energy/settings state; `VisualWindow` for transparent desktop or dark fullscreen; `AfterglowApp(Gtk.Application)` owning workers, UI, async generations, demo and shutdown. Run via `python3 -m afterglow` with optional `--demo`.
 
-- [ ] Add a GTK/Xvfb smoke check asserting the demo advances, pause freezes its clock, offset changes lyric position, and shutdown leaves no workers/overlay windows.
-- [ ] Run it before implementation and record the expected missing-app failure.
-- [ ] Implement the locked DESIGN.md colors/type/spacing, readable Pango lyrics, smooth edge glow, word-stack/line views, monitor selection and X11 click-through overlay. Cap redraw rate and reduce idle work; maintain a usable control window on visual-window close.
-- [ ] Add all approved controls: provider launch shortcuts, source selector, supported transport actions, desktop/fullscreen/off, separate effects, style, intensity/width/size/offset, palette, Reduce Motion, monitor, lyric import, demo and quit. Show honest connection/capture/timing states.
-- [ ] Run the smoke check and the complete unittest suite. Inspect rendered 1920×1200 demo screenshots and smaller control-window layout, including long/RTL lyrics. Confirm keyboard navigation and Escape behavior.
-- [ ] Commit UI and integration.
+- [x] Add a GTK/Xvfb smoke check asserting the demo advances, pause freezes its clock, offset changes lyric position, and shutdown leaves no workers/overlay windows.
+- [x] Run it before implementation and record the expected missing-app failure.
+- [x] Implement the locked DESIGN.md colors/type/spacing, readable Pango lyrics, smooth edge glow, word-stack/line views, monitor selection and X11 click-through overlay. Cap redraw rate and reduce idle work; maintain a usable control window on visual-window close.
+- [x] Add all approved controls: provider launch shortcuts, source selector, supported transport actions, desktop/fullscreen/off, separate effects, style, intensity/width/size/offset, palette, Reduce Motion, monitor, lyric import, demo and quit. Show honest connection/capture/timing states.
+- [x] Run the smoke check and the complete unittest suite. Inspect rendered 1920×1200 demo screenshots and smaller control-window layout, including long/RTL lyrics. Confirm keyboard navigation and Escape behavior.
+- [x] Commit UI and integration.
 
 ### Task 6: Local trial, review and open-source publication
 
