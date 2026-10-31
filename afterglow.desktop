@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Afterglow Linux
+Comment=Animated lyrics and audio-reactive screen light
+Exec=afterglow-linux
+Icon=audio-x-generic
+Terminal=false
+Categories=AudioVideo;Audio;
