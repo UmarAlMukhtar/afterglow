@@ -118,3 +118,10 @@
 - [ ] Review the full implementation against the approved spec, resolve actionable failures, and rerun only affected checks. A fresh review may be used if authorized by the selected execution workflow.
 - [ ] Check staged/tracked paths for credentials, caches and non-original fixtures. Commit the release source/docs, then create the requested public `UmarAlMukhtar/afterglow-linux` repository (use an available equivalent name if taken) and push the reviewed source.
 - [ ] Leave the local demo open for the user to try, and deliver the repository URL, run command, observed checks and remaining limitations.
+
+## Approved follow-up implementation
+
+- [x] Four reference lyric styles, actual GPU lens, original symbol mapping and native style captures.
+- [x] Optional authenticated Spotify lyric bridge; user-installed Spotify copy and official Spicetify release applied with user approval.
+- [x] True black, inertial rise and independent sideways motion; Reduce Motion remains off.
+- [x] Both reviews addressed with failing regressions followed by passing checks.

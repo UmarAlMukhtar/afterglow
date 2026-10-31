@@ -26,6 +26,7 @@ class Canvas(Gtk.DrawingArea):
         self.doc = None
         self.words = []
         self.focus = None
+        self.gpu_failed = False
         self.connect('draw', self.draw_scene)
         self.get_accessible().set_name('Animated lyrics and audio-reactive light')
 
@@ -55,12 +56,8 @@ class Canvas(Gtk.DrawingArea):
         now = time.monotonic()
         palette = app.palette if s['palette'] == 'album' else (s['primary'], s['secondary'])
         if not self.desktop:
-            ctx.set_source_rgb(*rgb('#101413'))
+            ctx.set_source_rgb(0, 0, 0)
             ctx.paint()
-            haze = cairo.RadialGradient(width * .5, height * .8, 0, width * .5, height * .8, max(width, height) * .7)
-            haze.add_color_stop_rgba(0, *rgb(palette[0]), .08)
-            haze.add_color_stop_rgba(1, *rgb(palette[1]), 0)
-            ctx.set_source(haze); ctx.paint()
         if s['light']:
             level, bass = app.energy
             strength = s['intensity'] * (.25 + .55 * level + .2 * bass)
@@ -91,7 +88,7 @@ class Canvas(Gtk.DrawingArea):
             self.word_indices = {(i, j): n for n, (_, i, j) in enumerate(self.words)}
             self.focus = None
         i, j, progress = locate(doc, position)
-        use_lens = s['style'] in STYLES and not getattr(app, 'gpu_error', '')
+        use_lens = s['style'] in STYLES and not self.gpu_failed
         if s['lyrics'] and (not use_lens or doc.quality in ('missing', 'instrumental', 'unsynced')):
             if doc.quality == 'unsynced' and doc.lines:
                 lines = doc.lines[0].text.splitlines()
@@ -140,11 +137,15 @@ class Stage(Gtk.Overlay):
     def __init__(self, owner, preview=False, desktop=False):
         super().__init__()
         self.canvas = Canvas(owner, preview, desktop)
-        self.lens = LensLayer(owner, preview)
+        self.lens = LensLayer(owner, preview, self.fallback)
         self.add(self.canvas)
         self.add_overlay(self.lens)
         self.set_overlay_pass_through(self.lens, True)
         self.get_accessible().set_name('Animated lyrics and audio-reactive light')
+
+    def fallback(self, message):
+        self.canvas.gpu_failed = True
+        self.canvas.queue_draw()
 
     def queue_draw(self):
         self.canvas.queue_draw()

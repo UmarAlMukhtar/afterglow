@@ -1,5 +1,4 @@
 """Optional authenticated loopback receiver. Spotify credentials never enter it."""
-from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import hmac
 import json
@@ -8,7 +7,7 @@ import re
 import secrets
 import threading
 
-from .lyrics import parse_lrc, MAX_TEXT
+from .lyrics import LyricDocument, Line, estimated_words, MAX_TEXT
 from .storage import paths, atomic_write
 
 PORT = 43827
@@ -41,24 +40,34 @@ def parse_spotify_lyrics(payload):
         if not isinstance(lines, list) or len(lines) > 10000:
             raise ValueError('Invalid lyric lines')
         output = []
+        total_size = 0
         timed = lyrics.get('syncType') == 'LINE_SYNCED'
         for line in lines:
             text = line['words']
             if not isinstance(text, str) or len(text) > 10000:
                 raise ValueError('Invalid lyric text')
             text = text.replace('\n', ' ').replace('\r', ' ')
+            total_size += len(text.encode())
+            if total_size > MAX_TEXT:
+                raise ValueError('Lyrics are too large')
             if timed:
                 stamp = float(line['startTimeMs']) / 1000
                 if not math.isfinite(stamp) or not 0 <= stamp <= 21600:
                     raise ValueError('Invalid lyric time')
-                output.append(f'[{int(stamp)//60:02}:{stamp%60:06.3f}]' + text)
+                if text.strip():
+                    output.append((stamp,text))
             else:
                 output.append(text)
-        text = '\n'.join(output)
-        if len(text.encode()) > MAX_TEXT:
-            raise ValueError('Lyrics are too large')
-        document = parse_lrc(text, duration)
-        return track, replace(document, source='Spotify local bridge')
+        if not timed:
+            plain = '\n'.join(output).strip()
+            return track, LyricDocument((Line(plain,0,0),) if plain else (), 'unsynced' if plain else 'missing', 'Spotify local bridge')
+        output = sorted(dict(output).items())
+        result = []
+        for i, (start,text) in enumerate(output):
+            end = min(output[i+1][0] if i+1<len(output) else (duration if duration>start else start+5),start+7)
+            if end>start:
+                result.append(Line(text,start,end,estimated_words(text,start,end)))
+        return track,LyricDocument(tuple(result),'estimated' if result else 'missing','Spotify local bridge')
     except (KeyError, TypeError, OverflowError) as error:
         raise ValueError('Invalid Spotify lyric payload') from error
 
@@ -105,8 +114,9 @@ class SpotifyBridge:
                         self.reply(413); return
                     payload = json.loads(self.rfile.read(size))
                     track, document = parse_spotify_lyrics(payload)
-                    owner.latest = (track, document)
-                    owner.on_lyrics(track, document)
+                    if document.lines and owner.latest != (track,document):
+                        owner.latest = (track, document)
+                        owner.on_lyrics(track, document)
                     self.reply(204)
                 except (ValueError, OSError):
                     self.reply(400)

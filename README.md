@@ -64,7 +64,7 @@ closes all visual surfaces and stops audio capture. Closing the main window quit
 ## Four lyric styles
 
 Choose **Ship**, **Fisheye**, **Fisheye Visual**, or **Visual**. All use large,
-perspective word walls and a filled current-word highlight. The two fisheye views
+perspective word walls and a filled current-word highlight, on true black. A damped spring adds upward inertia, slow rise and independent sideways drift. The two fisheye views
 use an actual GPU mesh lens; the Visual variants add matched word symbols. The
 quieter line view remains available. Text is shaped with Pango for multilingual
 lyrics. These are independent recreations from public visual references: proprietary
@@ -134,6 +134,8 @@ The first target is **Fedora 44, bspwm, X11, picom and PipeWire**.
 | Output-audio capture / nonzero reaction | Observed on the current Bluetooth sink monitor |
 | MPRIS pause, track changes, disconnect/reconnect | Verified with a private D-Bus test player |
 | AMLL public TTML download and parsing | Live endpoint checked |
+| Spotify local lyric bridge | Lyrics received from the live Spotify session; recording availability varies |
+| Four lyric styles / OpenGL lens | All four rendered and captured on AMD Radeon 780M |
 | LRCLIB live lookup | Returned HTTP 502 during initial verification; retry/import remain available |
 | YouTube Music / Apple Music / SoundCloud | Launch shortcuts provided; service-specific playback/login unverified |
 | Bluetooth lyric alignment | Manual offset provided; perceptual alignment unverified |
@@ -142,7 +144,7 @@ The first target is **Fedora 44, bspwm, X11, picom and PipeWire**.
 
 This app uses fullscreen as a visual mode. It is **not a lock screen** and does not
 replace or weaken your screen locker. A secure locker may cover its windows.
-Only one selected monitor is rendered at a time. Reduce Motion removes lyric
+Only one selected monitor is rendered at a time. Reduce Motion is off by default; enabling it removes lyric
 travel; the glow uses smoothed brightness changes rather than strobing.
 
 ![Native control window](docs/images/controls.png)

@@ -17,7 +17,7 @@ guide the experience, rather than supplying proprietary code or branding.
 
 | Token | Value | Usage |
 |---|---|---|
-| bg-primary | #101413 | Main window and fullscreen stage |
+| bg-primary | #000000 | Main window and fullscreen stage |
 | bg-surface | #1B2421 | Controls and settings |
 | text-primary | #F3F5EE | Current lyric and headings |
 | text-secondary | #A9B7AE | Nearby lyrics and secondary text |
@@ -113,3 +113,5 @@ and are not shipped as product assets.
 - Icons are an original Unicode mapping, not Apple's proprietary symbol artwork or
   Verci's private word database. Pixel-identical proprietary shaders, font metrics
   and full icon-catalog parity are not claimed.
+
+The user approved a true-black background and more lyric movement: a damped vertical spring, slow within-word upward drift, slight roll and independent lateral drift. Reduce Motion remains off by default and was confirmed off in the running app.

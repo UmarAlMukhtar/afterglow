@@ -27,7 +27,7 @@ DEMO_LRC = '''[00:00.00]<00:00.00>Let <00:01.00>the <00:01.50>room <00:02.50>glo
 [00:25.00]<00:25.00>Stay <00:26.40>here <00:27.70>in <00:28.30>the <00:29.00>music<00:32.00>'''
 
 CSS = b'''
-window { background-color: #101413; color: #F3F5EE; font-family: Sans; font-size: 14px; }
+window { background-color: #000000; color: #F3F5EE; font-family: Sans; font-size: 14px; }
 button, combobox, entry { border-radius: 6px; }
 button { background-image: none; background-color: #1B2421; border: 1px solid #35473D; color: #F3F5EE; padding: 8px 12px; box-shadow: none; }
 button:hover { background-color: #2C3B33; }
@@ -346,7 +346,7 @@ class AfterglowApp(Gtk.Application):
         if kind == 'lyrics':
             self.loading = False
             bridge = getattr(self, 'bridge', None)
-            if bridge and bridge.latest and self.playback and spotify_track_id(self.playback.track_url) == bridge.latest[0] and (not result or (result.quality != 'word' and result.source != 'LRC')):
+            if bridge and bridge.latest and bridge.latest[1].lines and self.playback and spotify_track_id(self.playback.track_url) == bridge.latest[0] and (not result or (result.quality != 'word' and result.source != 'LRC')):
                 result = bridge.latest[1]
                 error = ''
             self.document = result or LyricDocument()
@@ -370,7 +370,7 @@ class AfterglowApp(Gtk.Application):
                 self.content_status = 'Spotify bridge could not bind its local port; another Afterglow may be running'
 
     def accept_spotify_lyrics(self, track_id, document):
-        if self.closing or self.demo or not self.playback or spotify_track_id(self.playback.track_url) != track_id:
+        if not document.lines or self.closing or self.demo or not self.playback or spotify_track_id(self.playback.track_url) != track_id:
             return False
         if self.document.quality == 'word' or self.document.source == 'LRC':
             return False

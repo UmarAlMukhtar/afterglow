@@ -4,17 +4,18 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 (async () => {
-  let spotifyUrl, sent;
+  let spotifyUrl, sent, retry, providerCalls=0, localCalls=0;
   const context = {
-    console, AbortSignal,
+    console, AbortSignal, setInterval(fn) { retry=fn; },
     Spicetify: {
       Player: { data: { item: { uri: 'spotify:track:0123456789012345678901', metadata: { duration: '10000' } } }, addEventListener() {} },
       CosmosAsync: { async get(url) {
+        providerCalls++;
         spotifyUrl = url;
         return { sessionSecret: 'MUST_NOT_LEAVE_SPOTIFY', lyrics: { syncType: 'LINE_SYNCED', extra: 'not needed', lines: [{ startTimeMs: '1000', words: 'Original fixture', unused: 'not needed' }] } };
       } }
     },
-    async fetch(url, options) { sent = { url, options }; return { ok: true }; }
+    async fetch(url, options) { localCalls++; sent = { url, options }; return { ok: true }; }
   };
   await vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../integrations/spotify/afterglow-bridge.js'), 'utf8'), context);
   assert.equal(new URL(spotifyUrl).hostname, 'spclient.wg.spotify.com');
@@ -24,5 +25,9 @@ const vm = require('node:vm');
   assert.equal(sent.options.body.includes('MUST_NOT_LEAVE_SPOTIFY'), false);
   assert.equal(sent.options.body.includes('not needed'), false);
   assert.equal(JSON.parse(sent.options.body).lyrics.lines[0].words, 'Original fixture');
+  assert.equal(typeof retry,'function');
+  await retry();
+  assert.equal(providerCalls,1);
+  assert.equal(localCalls,2);
   console.log('Spotify extension confines session requests to Spotify and sends only lyric data to loopback: PASS');
 })().catch(error => { console.error(error); process.exitCode = 1; });

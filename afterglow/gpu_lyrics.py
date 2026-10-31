@@ -12,7 +12,7 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('PangoCairo', '1.0')
 from gi.repository import Gtk, Pango, PangoCairo
 
-from .lyric_scene import STYLES, icon_for, scene_rows
+from .lyric_scene import STYLES, icon_for, scene_rows, LyricMotion, row_drift
 
 VERTEX = '''#version 330 core
 layout(location=0) in vec4 vertex;
@@ -29,6 +29,8 @@ void main() {
     float b = .08 + drift*.045;
     p = vec3(p.x,cos(a)*p.y,sin(a)*p.y);
     p = vec3(cos(b)*p.x+sin(b)*p.z,p.y,-sin(b)*p.x+cos(b)*p.z);
+    float roll = drift*.025;
+    p.xy = mat2(cos(roll),sin(roll),-sin(roll),cos(roll))*p.xy;
     if(lens > .5) {
         float dome = exp(-dot(p.xy,p.xy*vec2(.7,1.1))*1.5);
         p.xy *= 1.0 + .40*dome;
@@ -79,32 +81,38 @@ class GL:
             setattr(self, name, fn)
 
     def program(self):
-        shaders = []
-        for kind, source in ((0x8B31, VERTEX), (0x8B30, FRAGMENT)):
-            shader = self.CreateShader(kind)
-            data = C.c_char_p(source.encode())
-            self.ShaderSource(shader, 1, C.byref(data), None)
-            self.CompileShader(shader)
+        shaders, program = [], 0
+        try:
+            for kind, source in ((0x8B31, VERTEX), (0x8B30, FRAGMENT)):
+                shader = self.CreateShader(kind)
+                shaders.append(shader)
+                data = C.c_char_p(source.encode())
+                self.ShaderSource(shader, 1, C.byref(data), None)
+                self.CompileShader(shader)
+                okay = C.c_int()
+                self.GetShaderiv(shader, 0x8B81, C.byref(okay))
+                if not okay.value:
+                    log = C.create_string_buffer(4096)
+                    self.GetShaderInfoLog(shader, len(log), None, log)
+                    raise RuntimeError(log.value.decode(errors='replace'))
+            program = self.CreateProgram()
+            for shader in shaders:
+                self.AttachShader(program, shader)
+            self.LinkProgram(program)
             okay = C.c_int()
-            self.GetShaderiv(shader, 0x8B81, C.byref(okay))
+            self.GetProgramiv(program, 0x8B82, C.byref(okay))
             if not okay.value:
                 log = C.create_string_buffer(4096)
-                self.GetShaderInfoLog(shader, len(log), None, log)
+                self.GetProgramInfoLog(program, len(log), None, log)
                 raise RuntimeError(log.value.decode(errors='replace'))
-            shaders.append(shader)
-        program = self.CreateProgram()
-        for shader in shaders:
-            self.AttachShader(program, shader)
-        self.LinkProgram(program)
-        okay = C.c_int()
-        self.GetProgramiv(program, 0x8B82, C.byref(okay))
-        for shader in shaders:
-            self.DeleteShader(shader)
-        if not okay.value:
-            log = C.create_string_buffer(4096)
-            self.GetProgramInfoLog(program, len(log), None, log)
-            raise RuntimeError(log.value.decode(errors='replace'))
-        return program
+            return program
+        except Exception:
+            if program:
+                self.DeleteProgram(program)
+            raise
+        finally:
+            for shader in shaders:
+                self.DeleteShader(shader)
 
 
 def color(value):
@@ -112,9 +120,11 @@ def color(value):
 
 
 class LensLayer(Gtk.GLArea):
-    def __init__(self, owner, preview=False):
+    def __init__(self, owner, preview=False, on_failure=None):
         super().__init__()
         self.owner, self.preview = owner, preview
+        self.on_failure = on_failure
+        self.failed = False
         self.set_required_version(3, 3)
         self.set_has_alpha(True)
         self.set_auto_render(False)
@@ -122,9 +132,35 @@ class LensLayer(Gtk.GLArea):
         self.textures = OrderedDict()
         self.document = None
         self.flat = []
-        self.focus = None
+        self.motion = LyricMotion()
+        self.connect('realize', self.realized)
         self.connect('render', self.render)
         self.connect('unrealize', self.release)
+
+    def fail(self, message):
+        if self.failed:
+            return
+        self.failed = True
+        self.owner.gpu_error = message
+        from gi.repository import GLib
+        def fallback():
+            self.hide()
+            if self.on_failure:
+                self.on_failure(message)
+            return False
+        GLib.idle_add(fallback)
+
+    def realized(self, area):
+        self.make_current()
+        if self.get_error():
+            self.fail('OpenGL lyric lens unavailable; using the basic lyric view')
+            return
+        try:
+            self.initialize()
+        except Exception as error:
+            self.release()
+            self.fail('OpenGL lyric lens unavailable; using the basic lyric view')
+            print('Lyric renderer:', str(error)[:300])
 
     def initialize(self):
         gl = self.gl = GL()
@@ -198,8 +234,10 @@ class LensLayer(Gtk.GLArea):
         return result
 
     def render(self, area, context):
+        if self.failed:
+            return True
         if self.get_error():
-            self.owner.gpu_error = 'OpenGL lyric lens unavailable; using the basic lyric view'
+            self.fail('OpenGL lyric lens unavailable; using the basic lyric view')
             return True
         try:
             if self.gl is None:
@@ -213,7 +251,7 @@ class LensLayer(Gtk.GLArea):
             if doc is not self.document:
                 self.document = doc
                 self.flat = sorted((w for line in doc.lines for w in line.words), key=lambda w:w.start)
-                self.focus = None
+                self.motion = LyricMotion()
             position = app.lyric_position()
             rows = scene_rows(doc, position, self.flat)
             if not rows:
@@ -226,28 +264,29 @@ class LensLayer(Gtk.GLArea):
                 main = app.palette[0]
                 highlight = '#' + ''.join(f'{int(v*.66*255):02x}' for v in color(main))
                 secondary = main
-            current_start = self.flat[bisect_right(self.flat,position,key=lambda w:w.start)-1].start
-            transition = min(1., max(.0,(position-current_start)/.19)) if not app.settings['reduce_motion'] else 1.
-            slide = (1-transition)**3
+            index = bisect_right(self.flat,position,key=lambda w:w.start)-1
+            reduced = app.settings['reduce_motion']
+            focus = self.motion.sample(index,rows[-1][3],time.monotonic(),reduced)
             gl.UseProgram(self.program); gl.BindVertexArray(self.vao.value)
             gl.Enable(0x0BE2); gl.BlendFunc(1,0x0303)
             gl.ActiveTexture(0x84C0); gl.Uniform1i(self.uniforms['glyph'],0)
             gl.Uniform2f(self.uniforms['screen'],width,height)
             gl.Uniform1f(self.uniforms['lens'],1 if style['lens'] else 0)
-            gl.Uniform1f(self.uniforms['drift'],0 if app.settings['reduce_motion'] else math.sin(time.monotonic()*.18))
+            gl.Uniform1f(self.uniforms['drift'],0 if reduced else math.sin(position*.18))
             visible = rows[-(2 if self.preview else 3):]
             for text, distance, active, progress in visible:
                 icon = icon_for(text) if style['icons'] else ''
                 texture, tw, th = self.sprite(text,icon,active,size,main if distance>-2 else secondary,highlight,secondary)
                 shrink = min(1.,width*.69/max(1,tw))
-                y = height*(.61 if self.preview else .66) + (distance+slide)*height*(.22 if self.preview else .14)
-                gl.Uniform4f(self.uniforms['rect'],width*.5,y,tw*shrink,th*shrink)
+                dx,dy = row_drift(index+distance,position,reduced)
+                y = height*(.61 if self.preview else .66) + (distance+index-focus)*height*(.22 if self.preview else .14) + dy*height
+                gl.Uniform4f(self.uniforms['rect'],width*(.5+dx),y,tw*shrink,th*shrink)
                 gl.Uniform1f(self.uniforms['opacity'],1 if distance>=-2 else .40)
                 gl.BindTexture(0x0DE1,texture)
                 gl.DrawArrays(0x0004,0,self.vertices)
             return True
         except Exception as error:
-            self.owner.gpu_error = 'OpenGL lyric lens unavailable; using the basic lyric view'
+            self.fail('OpenGL lyric lens unavailable; using the basic lyric view')
             print('Lyric renderer:', str(error)[:300])
             return True
 
@@ -260,7 +299,10 @@ class LensLayer(Gtk.GLArea):
         for texture, _, _ in self.textures.values():
             value = C.c_uint(texture); self.gl.DeleteTextures(1,C.byref(value))
         self.textures.clear()
-        self.gl.DeleteBuffers(1,C.byref(self.buffer))
-        self.gl.DeleteVertexArrays(1,C.byref(self.vao))
-        self.gl.DeleteProgram(self.program)
+        if getattr(self, 'buffer', None):
+            self.gl.DeleteBuffers(1,C.byref(self.buffer))
+        if getattr(self, 'vao', None):
+            self.gl.DeleteVertexArrays(1,C.byref(self.vao))
+        if getattr(self, 'program', 0):
+            self.gl.DeleteProgram(self.program)
         self.gl = None

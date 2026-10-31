@@ -1,5 +1,5 @@
 import unittest
-from afterglow.lyric_scene import STYLES, icon_for, scene_rows
+from afterglow.lyric_scene import STYLES, icon_for, scene_rows, LyricMotion, row_drift
 from afterglow.lyrics import parse_lrc
 
 
@@ -26,6 +26,20 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(icon_for('LOVE'), icon_for('love'))
         self.assertTrue(icon_for('time'))
         self.assertEqual(icon_for('unmappedxyz'), '')
+
+    def test_motion_settles_with_inertia_and_reduced_motion_snaps(self):
+        motion=LyricMotion()
+        self.assertEqual(motion.sample(0,0,0),0)
+        first=motion.sample(1,0,.033)
+        self.assertTrue(0<first<.3)
+        second=motion.sample(1,0,.066)
+        self.assertGreater(second,first)
+        for i in range(3,80): last=motion.sample(1,.5,i*.033)
+        self.assertAlmostEqual(last,1.1,delta=.02)
+        self.assertEqual(motion.sample(2,.5,3,reduced=True),2)
+        self.assertEqual(row_drift(1,5,reduced=True),(0,0))
+        self.assertNotEqual(row_drift(1,5),row_drift(2,5))
+        self.assertTrue(all(abs(v)<.05 for v in row_drift(1,5)))
 
 
 if __name__ == '__main__': unittest.main()

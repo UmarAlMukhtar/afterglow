@@ -50,7 +50,7 @@ The local token lives in Afterglow's private XDG config directory. The prepared 
 file embeds that local token so it can authenticate. **Do not publish that prepared
 file**; the public template contains only a placeholder. The receiver binds only
 loopback, enforces origin/authentication and body-size checks, and is disabled by
-default. Switch it off to stop listening. Received lyric documents stay in memory.
+default. Switch it off to stop listening. Received lyric documents stay in memory. The extension replays its in-memory current-song result locally every eight seconds, so reopening Afterglow reconnects without another Spotify lookup.
 
 Removing the extension from Spicetify configuration and applying again removes the
 client-side bridge. The preparer itself only writes the private extension file.
