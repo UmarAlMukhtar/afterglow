@@ -1,10 +1,58 @@
-# Afterglow Linux
+# Afterglow
 
 **Lyrics and light for the music you already play.**
 
-A native Linux companion with audio-reactive screen-edge lighting, album-derived
+A music companion for **Linux, Windows and Android** with audio-reactive screen-edge lighting, album-derived
 colors, and an animated word-by-word lyric stack. Use it as a click-through desktop
 overlay or a quiet fullscreen music view.
+
+## Downloads
+
+Get the platform assets from [GitHub Releases](https://github.com/UmarAlMukhtar/afterglow/releases).
+
+| Platform | Download / run | Requirements |
+|---|---|---|
+| Windows | Extract the entire Windows ZIP, then run `Afterglow.exe` | Windows 10 1809+ / Windows 11, x64; Microsoft Visual C++ 2015–2022 runtime |
+| Android | Install the signed APK on your phone | Android 10+, arm64 / ARMv7 / x64; enable media access in the app |
+| Linux | Extract the Linux archive, then run `./afterglow-linux` | X11, Python, GTK3, PulseAudio / PipeWire; packages below |
+
+Windows and Android share the Flutter app in [`companion/`](companion/README.md).
+They use native Windows media controls / WASAPI and Android media sessions /
+playback capture, respectively. The original native GTK Linux app stays in `afterglow/`.
+The Windows release is a portable folder, not an installer; keep its DLLs and `data/` next to the executable.
+Android is a sideloaded release, not a Play Store listing. macOS and iOS builds are not included.
+
+### Windows and Android quick start
+
+1. Play music in a player that exposes system media controls. On Android, use
+   **Connect music apps**, enable Afterglow's notification access, and return.
+2. Enable **audio reaction** separately. Windows captures the current output with
+   WASAPI. Android asks for audio permission and a system capture dialog; some
+   players prohibit capture, so silence does not mean their lyrics are unavailable.
+3. Enter fullscreen or enable the overlay. Windows **Ctrl+Alt+G** exits its
+   click-through desktop glow. Android needs **Appear on top** permission; tap
+   the persistent notification to reopen controls or use its **Stop** action.
+4. Try the explicitly labeled demo, or import LRC / TTML for the selected song.
+   Imports, cache and then online lookup are used in that order. A positive timing
+   offset advances lyrics. Line-only sources say **Estimated word timing**.
+
+The four word treatments and line view are available in the Flutter stage. Its
+fisheye uses shaped text sliced through a cylindrical lens; it does not reuse the
+Linux OpenGL renderer. Android's system overlay uses a simpler native word stack;
+the full styles are in the app. Windows uses black color-key transparency, so
+desktop glow can have harder edges than the Linux compositor overlay.
+
+The Flutter app stores preferences, a bounded 500-document lyric cache and
+per-song imports in its OS application data directory. Album colors come from
+system-provided artwork. No microphone source is opened, audio/video files are
+never recorded, and audio is never uploaded. Android's required audio permission
+is named `RECORD_AUDIO`; capture is configured for playback audio only. Notification
+bodies are never read. Notification access is broader than media access at the OS
+level; only grant it if you are comfortable with that system permission.
+
+Lyric lookups send song title, artist, album and duration to LRCLIB; AMLL receives
+a Spotify track ID when the player exposes one. The optional Spotify/Spicetify
+bridge below remains specific to the Linux app.
 
 Inspired by the experience of [Verci](https://www.verci.xyz/) and
 [Lumn](https://www.trylumn.xyz/), with an independent implementation for X11.
@@ -22,8 +70,8 @@ On Fedora:
 
 ```bash
 sudo dnf install python3-gobject python3-cairo python3-dbus gtk3 pulseaudio-utils
-git clone https://github.com/UmarAlMukhtar/afterglow-linux.git
-cd afterglow-linux
+git clone https://github.com/UmarAlMukhtar/afterglow.git
+cd afterglow
 ./afterglow-linux
 ```
 

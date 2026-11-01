@@ -128,7 +128,7 @@ class AfterglowApp(Gtk.Application):
 
     def build_window(self):
         self.window = Gtk.ApplicationWindow(application=self)
-        self.window.set_title('Afterglow Linux')
+        self.window.set_title('Afterglow')
         self.window.set_default_size(520, 920)
         self.window.set_size_request(380, 600)
         self.window.set_type_hint(Gdk.WindowTypeHint.DIALOG)

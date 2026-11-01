@@ -3,7 +3,7 @@ import sys
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Afterglow Linux — lyrics and light for your music')
+    parser = argparse.ArgumentParser(description='Afterglow — lyrics and light for your music (Linux GTK edition)')
     parser.add_argument('--demo', action='store_true', help='Start with original demo lyrics and simulated audio reaction')
     args = parser.parse_args()
     try:

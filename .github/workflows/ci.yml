@@ -1,0 +1,77 @@
+name: Platform checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y python3-gi python3-cairo python3-dbus gir1.2-gtk-3.0 libgl1 xvfb dbus-x11 pulseaudio-utils
+      - run: /usr/bin/python3 -m unittest discover -s tests -v
+      - run: dbus-run-session -- /usr/bin/python3 tests/check_mpris.py
+      - run: xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/check_desktop.py
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+      - run: node tests/check_spotify_extension.cjs
+      - run: /usr/bin/python3 -m compileall -q afterglow tests tools
+  companion:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - run: flutter analyze
+      - run: flutter test
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afterglow-windows-x64
+          path: companion/build/windows/x64/runner/Release/
+  android:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: companion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afterglow-android-debug
+          path: companion/build/app/outputs/flutter-apk/app-debug.apk
