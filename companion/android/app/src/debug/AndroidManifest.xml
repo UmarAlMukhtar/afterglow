@@ -4,4 +4,8 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <application>
+        <service android:name=".PlaybackFixtureService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
+    </application>
 </manifest>

@@ -1,6 +1,10 @@
 package com.afterglow.afterglow_companion
 
 import android.app.Activity
+import android.app.Service
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.IBinder
 import android.media.AudioAttributes
 import android.media.MediaMetadata
 import android.media.MediaPlayer
@@ -32,7 +36,7 @@ class PlaybackFixture {
                 .setState(if (audio.isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED, audio.currentPosition.toLong(), 1f, SystemClock.elapsedRealtime()).build())
         }
         @JvmStatic fun control(activity: Activity, action: String) {
-            if (action == "stop") { player?.release(); player = null; session?.release(); session = null; return }
+            if (action == "stop") { player?.release(); player = null; session?.release(); session = null; activity.stopService(Intent(activity, PlaybackFixtureService::class.java)); return }
             if (player != null) return
             val file = File(activity.cacheDir, "afterglow-test.wav")
             val rate = 44100; val length = rate * 32; val bytes = length * 2
@@ -60,6 +64,15 @@ class PlaybackFixture {
                 isActive = true
             }
             publish()
+            activity.startForegroundService(Intent(activity, PlaybackFixtureService::class.java))
         }
+    }
+}
+
+class PlaybackFixtureService : Service() {
+    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(103, serviceNotification(this, "Local generated-audio verification fixture", PlaybackFixtureService::class.java, 103), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        return START_NOT_STICKY
     }
 }
