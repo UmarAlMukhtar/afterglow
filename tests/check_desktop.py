@@ -51,6 +51,8 @@ def main():
                 assert app.window.get_visible()
                 print('GTK demo clock, pause, offset, desktop/fullscreen, controls recovery: PASS')
             except Exception as exc:
+                import traceback
+                traceback.print_exc()
                 errors.append(exc)
             finally:
                 app.quit()
