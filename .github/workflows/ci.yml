@@ -11,10 +11,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo python3-cairo python3-dbus gir1.2-gtk-3.0 librsvg2-common fonts-dejavu-core libgl1 xvfb dbus-x11 pulseaudio-utils
+      - run: sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo python3-cairo python3-dbus gir1.2-gtk-3.0 librsvg2-common fonts-dejavu-core libgl1 xvfb picom dbus-x11 pulseaudio-utils
       - run: /usr/bin/python3 -m unittest discover -s tests -v
       - run: dbus-run-session -- /usr/bin/python3 tests/check_mpris.py
-      - run: xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/check_desktop.py
+      - run: |
+          xvfb-run -a dbus-run-session -- sh -c '
+            picom --backend xrender --daemon
+            /usr/bin/python3 tests/check_desktop.py
+          '
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
       - run: node tests/check_spotify_extension.cjs
